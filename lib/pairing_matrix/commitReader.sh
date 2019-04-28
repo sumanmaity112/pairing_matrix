@@ -68,8 +68,16 @@ function printCommit {
     IFS=$OIFS
     coAuthors=$(join_by ', ' "${coAuthors[@]}")
     IFS=$CIFS
-#    coAuthors="($coAuthors)"
-      echo "$author,${coAuthors[0]}"
+    coAuthors+=($author)
+
+    for (( i=0; i<${#coAuthors[@]}; i++ ))
+    do
+       for (( j=i+1; j<${#coAuthors[@]}; j++ ))
+        do
+            echo "${coAuthors[$i]}","${coAuthors[$j]}"
+        done
+    done
+#      echo "$author,${coAuthors[0]}"
 
   fi
 #  echo "${CYAN}$commitHash ${YELLOW}$date ${WHITE}-${MAGEN}$branch ${WHITE}$summary ${BLUE}$author ${GREEN}$coAuthors"
