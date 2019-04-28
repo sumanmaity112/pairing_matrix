@@ -1,4 +1,5 @@
 require 'date'
+# require_relative "./commitReader.sh"
 
 module PairingMatrix
   class CommitReader
@@ -18,9 +19,9 @@ module PairingMatrix
 
     def authors(since)
       commits = read(since)
-      commits.map do |commit|
-        commit.scan(/#{@config.authors_regex}/).flatten.compact.reject(&:empty?).map { |name| name.gsub(' ', '') }.sort.join(',')
-      end.compact.reject(&:empty?)
+      # commits.map do |commit|
+      #   commit.scan(/#{@config.authors_regex}/).flatten.compact.reject(&:empty?).map { |name| name.gsub(' ', '') }.sort.join(',')
+      # end.compact.reject(&:empty?)
     end
 
     def titleize(name)
@@ -42,7 +43,9 @@ module PairingMatrix
 
     private
     def read_commits(since)
-      `git log --oneline --after=\"#{since}\"`.split("\n")
+      # puts File.dirname(File.realpath(__FILE__))
+      # `git log --oneline --after=\"#{since}\"`.split("\n")
+      `sh #{File.dirname(File.realpath(__FILE__))}/commitReader.sh --after=\"#{since}\"`.split("\n")
     end
   end
 end
