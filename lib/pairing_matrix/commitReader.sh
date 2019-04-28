@@ -1,90 +1,68 @@
 #!/usr/bin/env bash
 
+COMMIT_HASH=''
+NEXT_HASH=''
+AUTHOR=''
+CO_AUTHORS=()
 
-commitHash=''
-nextHash=''
-author=''
-date=''
-description=''
-summary=''
-coAuthors=()
-
-us=$'\037'
+US=$'\037'
 OIFS=$IFS
-RED='\033[01;31m'
-GREEN='\033[01;32m'
-YELLOW='\033[01;33m'
-BLUE='\033[01;34m'
-MAGEN='\033[01;35m'
-CYAN='\033[01;36m'
-WHITE='\033[01;37m'
 
-function main {
-  git log --pretty=format:"commitHash %h$us(%ar)$us%d$us%s$us%an$us%b" $@ |
-  sed '/^[[:blank:]]*$/d' |
-  parseGitLog |
-  less -R
-}
-
-function parseGitLog { 
-  IFS=$us
-  while read data
-  do 
-    if [[ $data =~ (commitHash )(.*) ]]; then
-      a=($data)
-      nextHash=$( echo ${a[0]} | sed -e "s/commitHash \(.*\)/\1/" );
-      if [[ $nextHash != $commitHash ]] && [[ $commitHash != '' ]]; then
-        printCommit
-      fi
-      commitHash=$nextHash
-      date=${a[1]}
-      branch=${a[2]}
-      summary=${a[3]}
-      author=${a[4]}
-      coAuthors=()
-      possibleCoAuthor=${a[5]}
-    else
-      possibleCoAuthor=$data
-    fi
-    extractCoAuthor $possibleCoAuthor
-  done
-
-  printCommit
-  IFS=$OIFS
-}
-
-function extractCoAuthor {
+function __extractCoAuthor(){
   if [[ $1 =~ (Co-authored-by: )(.*)( <.*) ]]; then
-    authorFound=${BASH_REMATCH[2]}
-    coAuthors+=($authorFound)
+    CO_AUTHORS+=(${BASH_REMATCH[2]})
   fi
 }
 
-function printCommit {
-  if [ ${#coAuthors[@]} -eq 0 ]; then
-    coAuthors=""
-  else
-    CIFS=$IFS
-    IFS=$OIFS
-    coAuthors=$(join_by ', ' "${coAuthors[@]}")
-    IFS=$CIFS
-    coAuthors+=($author)
-
-    for (( i=0; i<${#coAuthors[@]}; i++ ))
+function __printPairs() {
+    for (( i=0; i<${#CO_AUTHORS[@]}; i++ ))
     do
-       for (( j=i+1; j<${#coAuthors[@]}; j++ ))
+       for (( j=i+1; j<${#CO_AUTHORS[@]}; j++ ))
         do
-            echo "${coAuthors[$i]}","${coAuthors[$j]}"
+            echo "${CO_AUTHORS[$i]}","${CO_AUTHORS[$j]}"
         done
     done
-#      echo "$author,${coAuthors[0]}"
-
-  fi
-#  echo "${CYAN}$commitHash ${YELLOW}$date ${WHITE}-${MAGEN}$branch ${WHITE}$summary ${BLUE}$author ${GREEN}$coAuthors"
 }
 
-#function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }
-function join_by { local IFS="$1"; shift; echo "$*"; }
+function __joinBy() {
+ local IFS="$1"; shift; echo "$*";
+}
+
+function __printCommit() {
+   if [[ -n ${CO_AUTHORS} ]]; then
+        CO_AUTHORS=$(__joinBy ', ' "${CO_AUTHORS[@]}")
+        CO_AUTHORS+=(${AUTHOR})
+        __printPairs
+   fi
+}
+
+function __parseGitLog() {
+  IFS=${US}
+  while read STREAM_DATA
+  do
+    local POSSIBLE_CO_AUTHOR=${STREAM_DATA}
+    if [[ ${STREAM_DATA} =~ (commitHash )(.*) ]]; then
+      local DETAILS=(${STREAM_DATA})
+      NEXT_HASH=$( echo ${DETAILS[0]} | sed -e "s/commitHash \(.*\)/\1/" );
+      if [[ ${NEXT_HASH} != ${COMMIT_HASH} ]] && [[ ${COMMIT_HASH} != '' ]]; then
+        __printCommit
+      fi
+      COMMIT_HASH=${NEXT_HASH}
+      AUTHOR=${DETAILS[1]}
+      CO_AUTHORS=()
+      POSSIBLE_CO_AUTHOR=${DETAILS[2]}
+    fi
+    __extractCoAuthor ${POSSIBLE_CO_AUTHOR}
+  done
+
+  __printCommit
+  IFS=${OIFS}
+}
+
+function main() {
+  git log --pretty=format:"commitHash %h$US%an$US%b" $@ |
+  sed '/^[[:blank:]]*$/d' | __parseGitLog
+}
 
 main $@
 
